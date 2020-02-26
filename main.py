@@ -73,7 +73,7 @@ def main(args):
     # CNN
     if args.verbose:
         print('Architecture: {}'.format(args.arch))
-    model = models.__dict__[args.arch](sobel=args.sobel)
+    model = models.__dict__[args.arch](dataset='mnist', sobel=args.sobel)
     fd = int(model.top_layer.weight.size()[1])
     model.top_layer = None
     model.features = torch.nn.DataParallel(model.features)
@@ -116,24 +116,18 @@ def main(args):
     # creating cluster assignments log
     cluster_log = Logger(os.path.join(args.exp, 'clusters'))
 
-    # preprocessing of data
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-    tra = [transforms.Resize(256),
-           transforms.CenterCrop(224),
-           transforms.ToTensor(),
-           normalize]
-
     # load the data
     end = time.time()
-    dataset = datasets.ImageFolder(args.data, transform=transforms.Compose(tra))
     if args.verbose:
         print('Load dataset: {0:.2f} s'.format(time.time() - end))
 
-    dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=args.batch,
-                                             num_workers=args.workers,
-                                             pin_memory=True)
+    mnist_train = datasets.MNIST('../mnist', train=True, download=True,
+                                            transform=transforms.Compose([
+                                            transforms.ToTensor(),
+                                            transforms.Normalize((0.1307,), (0.3081,))
+                                            ]))
+    dataloader = torch.utils.data.DataLoader(mnist_train, batch_size=args.batch, shuffle=True,
+                                             num_workers=args.workers, pin_memory=True)
 
     # clustering algorithm to use
     deepcluster = clustering.__dict__[args.clustering](args.nmb_cluster)
@@ -147,7 +141,7 @@ def main(args):
         model.classifier = nn.Sequential(*list(model.classifier.children())[:-1])
 
         # get the features for the whole dataset
-        features = compute_features(dataloader, model, len(dataset))
+        features = compute_features(dataloader, model, len(mnist_train))
 
         # cluster the features
         if args.verbose:
@@ -158,7 +152,7 @@ def main(args):
         if args.verbose:
             print('Assign pseudo labels')
         train_dataset = clustering.cluster_assign(deepcluster.images_lists,
-                                                  dataset.imgs)
+                                                  mnist_train.imgs)
 
         # uniformly sample per target
         sampler = UnifLabelSampler(int(args.reassign * len(train_dataset)),
@@ -178,7 +172,7 @@ def main(args):
         model.classifier = nn.Sequential(*mlp)
         model.top_layer = nn.Linear(fd, len(deepcluster.images_lists))
         model.top_layer.weight.data.normal_(0, 0.01)
-        model.top_layer.bias.data.zero_()
+        # model.top_layer.bias.data.zero_()
         model.top_layer.cuda()
 
         # train network with clusters as pseudo-labels
@@ -259,7 +253,7 @@ def train(loader, model, crit, opt, epoch):
                 'optimizer' : opt.state_dict()
             }, path)
 
-        target = target.cuda(async=True)
+        target = target.cuda(non_blocking=True)
         input_var = torch.autograd.Variable(input_tensor.cuda())
         target_var = torch.autograd.Variable(target)
 

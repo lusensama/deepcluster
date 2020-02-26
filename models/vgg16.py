@@ -8,8 +8,7 @@ import torch
 import torch.nn as nn
 import math
 from random import random as rd
-
-__all__ = [ 'VGG', 'vgg16']
+__all__ = [ 'VGG', 'vgg16', 'vgg15ab']
 
 
 class VGG(nn.Module):
@@ -91,4 +90,116 @@ def make_layers(input_dim, batch_norm):
 def vgg16(sobel=False, bn=True, out=1000):
     dim = 2 + int(not sobel)
     model = VGG(make_layers(dim, bn), out, sobel)
+    return model
+
+
+
+
+class VGG_15_avg_before_relu(nn.Module):
+    def __init__(self,  dr=0.1, num_classes=1000, units=512*7*7, sobel=False):
+        super(VGG_15_avg_before_relu, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.AvgPool2d((2, 2), (2, 2)),
+            nn.ReLU(),
+
+            nn.Conv2d(64, 128, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(128, 128, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.AvgPool2d((2, 2), (2, 2)),
+            nn.ReLU(),
+
+            nn.Conv2d(128, 256, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(256, 256, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(256, 256, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.AvgPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),  # AvgPool2d,
+            nn.ReLU(),
+
+            nn.Conv2d(256, 512, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.AvgPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),  # AvgPool2d,
+            nn.ReLU(),
+
+            nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.ReLU(),
+            nn.Dropout(dr),
+            nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            nn.AvgPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),
+            nn.ReLU()
+        )
+        self.classifier = nn.Sequential(
+            nn.Dropout(dr),
+            nn.Linear(units, 4096, bias=False),  # Linear,
+            nn.ReLU(),
+            nn.Dropout(dr),
+
+        )
+        self.top_layer = nn.Linear(4096, num_classes, bias=False)  # Linear,
+        self._initialize_weights()
+        if sobel:
+            grayscale = nn.Conv2d(3, 1, kernel_size=1, stride=1, padding=0)
+            grayscale.weight.data.fill_(1.0 / 3.0)
+            grayscale.bias.data.zero_()
+            sobel_filter = nn.Conv2d(1, 2, kernel_size=3, stride=1, padding=1)
+            sobel_filter.weight.data[0, 0].copy_(
+                torch.FloatTensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
+            )
+            sobel_filter.weight.data[1, 0].copy_(
+                torch.FloatTensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
+            )
+            sobel_filter.bias.data.zero_()
+            self.sobel = nn.Sequential(grayscale, sobel_filter)
+            for p in self.sobel.parameters():
+                p.requires_grad = False
+        else:
+            self.sobel = None
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                # nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                # nn.init.constant_(m.bias, 0)
+
+    def forward(self, x):
+        if self.sobel:
+            x = self.sobel(x)
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        if self.top_layer:
+            x = self.top_layer(x)
+        return x
+
+def vgg15ab(dataset='imagenet', **kwargs):
+    if dataset == 'imagenet':
+        model = VGG_15_avg_before_relu(num_classes=1000, **kwargs)
+    elif dataset == 'cifar100':
+        model = VGG_15_avg_before_relu(num_classes=100, units=512,**kwargs)
+    elif dataset == 'mnist':
+        model = VGG_15_avg_before_relu(num_classes=10, units=512, **kwargs)
+    else:
+        raise ValueError('Unsupported Dataset!')
     return model
