@@ -87,6 +87,9 @@ class LeNet(nn.Module):
 def lenet(dataset='mnist', **kwargs):
     if dataset == 'mnist':
         model = LeNet()
+    else:
+        raise ValueError('Unsupported Dataset!')
+    return model
 
 class VGG(nn.Module):
 
