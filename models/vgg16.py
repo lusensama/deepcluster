@@ -99,7 +99,8 @@ class VGG_15_avg_before_relu(nn.Module):
     def __init__(self,  dr=0.1, num_classes=1000, units=512*7*7, sobel=False):
         super(VGG_15_avg_before_relu, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 64, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
+            # in_channels 1, out_channels 64, kernel_size 3, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros'
+            nn.Conv2d(1, 64, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
             nn.ReLU(),
             nn.Dropout(dr),
             nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1), 1, 1, bias=False),
