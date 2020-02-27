@@ -7,9 +7,86 @@
 import torch
 import torch.nn as nn
 import math
+import torch.nn.functional as F
 from random import random as rd
-__all__ = [ 'VGG', 'vgg16', 'vgg15ab']
+__all__ = [ 'VGG', 'vgg16', 'vgg15ab', 'lenet']
 
+class LeNet(nn.Module):
+    def __init__(self,  num_classes=10, sobel=False):
+        super(LeNet, self).__init__()
+        self.features = nn.Sequential(
+            # input channel = 1, output channel = 6, kernel_size = 5
+            # input size = (32, 32), output size = (28, 28)
+            nn.Conv2d(1, 6, 5),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            # input channel = 6, output channel = 16, kernel_size = 5
+            # input size = (14, 14), output size = (10, 10)
+            nn.Conv2d(6, 16, 5),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        self.classifier = nn.Sequential(
+            # input dim = 16*5*5, output dim = 120
+            nn.Linear(16 * 5 * 5, 120),
+            nn.ReLU(),
+            # input dim = 120, output dim = 84
+            nn.Linear(120, 84),
+            nn.ReLU()
+        )
+        # input dim = 84, output dim = 10
+        self.top_layer = nn.Linear(84, num_classes)
+        self._initialize_weights()
+        if sobel:
+            grayscale = nn.Conv2d(1, 1, kernel_size=1, stride=1, padding=0)
+            grayscale.weight.data.fill_(1.0 / 3.0)
+            grayscale.bias.data.zero_()
+            sobel_filter = nn.Conv2d(1, 2, kernel_size=3, stride=1, padding=1)
+            sobel_filter.weight.data[0,0].copy_(
+                torch.FloatTensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
+            )
+            sobel_filter.weight.data[1,0].copy_(
+                torch.FloatTensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
+            )
+            sobel_filter.bias.data.zero_()
+            self.sobel = nn.Sequential(grayscale, sobel_filter)
+            for p in self.sobel.parameters():
+                p.requires_grad = False
+        else:
+            self.sobel = None
+
+    def forward(self, x):
+        if self.sobel:
+            x = self.sobel(x)
+        x = self.features(x)
+        # flatten as one dimension
+        x = x.view(x.size()[0], -1)
+        # input dim = 16*5*5, output dim = 120
+        x = self.classifier(x)
+        # input dim = 84, output dim = 10
+        if self.top_layer:
+            x = self.top_layer(x)
+        return x
+
+    def _initialize_weights(self):
+        for y,m in enumerate(self.modules()):
+            if isinstance(m, nn.Conv2d):
+                #print(y)
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                for i in range(m.out_channels):
+                    m.weight.data[i].normal_(0, math.sqrt(2. / n))
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.weight.data.normal_(0, 0.01)
+                m.bias.data.zero_()
+
+def lenet(dataset='mnist', **kwargs):
+    if dataset == 'mnist':
+        model = LeNet()
 
 class VGG(nn.Module):
 
@@ -56,7 +133,6 @@ class VGG(nn.Module):
     def _initialize_weights(self):
         for y,m in enumerate(self.modules()):
             if isinstance(m, nn.Conv2d):
-                #print(y)
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 for i in range(m.out_channels):
                     m.weight.data[i].normal_(0, math.sqrt(2. / n))
