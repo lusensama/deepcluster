@@ -31,7 +31,7 @@ def parse_args():
 
     parser.add_argument('data', metavar='DIR', help='path to dataset')
     parser.add_argument('--arch', '-a', type=str, metavar='ARCH',
-                        choices=['alexnet', 'vgg16', 'vgg15ab'], default='alexnet',
+                        choices=['alexnet', 'vgg16', 'vgg15ab', 'lenet'], default='alexnet',
                         help='CNN architecture (default: alexnet)')
     parser.add_argument('--sobel', action='store_true', help='Sobel filtering')
     parser.add_argument('--clustering', type=str, choices=['Kmeans', 'PIC'],
