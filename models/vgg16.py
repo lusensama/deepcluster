@@ -36,7 +36,7 @@ class LeNet(nn.Module):
         )
         # input dim = 84, output dim = 10
         self.top_layer = nn.Linear(84, num_classes)
-        self._initialize_weights()
+        # self._initialize_weights()
         if sobel:
             grayscale = nn.Conv2d(1, 1, kernel_size=1, stride=1, padding=0)
             grayscale.weight.data.fill_(1.0 / 3.0)
@@ -60,7 +60,7 @@ class LeNet(nn.Module):
             x = self.sobel(x)
         x = self.features(x)
         # flatten as one dimension
-        x = x.view(x.size()[0], -1)
+        x = x.view(x.size(0), -1)
         # input dim = 16*5*5, output dim = 120
         x = self.classifier(x)
         # input dim = 84, output dim = 10
