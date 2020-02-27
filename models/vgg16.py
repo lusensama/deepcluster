@@ -19,12 +19,12 @@ class LeNet(nn.Module):
             # input size = (32, 32), output size = (28, 28)
             nn.Conv2d(1, 6, 5),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(kernel_size=(2, 2), stride=2),
             # input channel = 6, output channel = 16, kernel_size = 5
             # input size = (14, 14), output size = (10, 10)
             nn.Conv2d(6, 16, 5),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.MaxPool2d(kernel_size=(2, 2), stride=2)
         )
         self.classifier = nn.Sequential(
             # input dim = 16*5*5, output dim = 120
