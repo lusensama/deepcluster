@@ -23,6 +23,7 @@ import torchvision.datasets as datasets
 
 import clustering
 import models
+
 from util import AverageMeter, Logger, UnifLabelSampler
 
 
@@ -74,6 +75,7 @@ def main(args):
     if args.verbose:
         print('Architecture: {}'.format(args.arch))
     model = models.__dict__[args.arch](dataset='mnist', sobel=args.sobel)
+
     fd = int(model.top_layer.weight.size()[1])
     model.top_layer = None
     model.features = torch.nn.DataParallel(model.features)

@@ -17,7 +17,7 @@ class LeNet(nn.Module):
         self.features = nn.Sequential(
             # input channel = 1, output channel = 6, kernel_size = 5
             # input size = (32, 32), output size = (28, 28)
-            nn.Conv2d(1, 6, 5),
+            nn.Conv2d(1, 6, 5, padding=2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 2), stride=2),
             # input channel = 6, output channel = 16, kernel_size = 5
@@ -36,7 +36,7 @@ class LeNet(nn.Module):
         )
         # input dim = 84, output dim = 10
         self.top_layer = nn.Linear(84, num_classes)
-        # self._initialize_weights()
+        self._initialize_weights()
         if sobel:
             grayscale = nn.Conv2d(1, 1, kernel_size=1, stride=1, padding=0)
             grayscale.weight.data.fill_(1.0 / 3.0)
