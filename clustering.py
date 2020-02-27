@@ -147,7 +147,7 @@ def cluster_assign(images_lists, dataset):
                             transforms.ToTensor(),
                             normalize])
 
-    return ReassignedDataset(image_indexes, pseudolabels, dataset, t)
+    return ReassignedDataset(image_indexes, pseudolabels, dataset)
 
 
 def run_kmeans(x, nmb_clusters, verbose=False):
