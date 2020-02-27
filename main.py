@@ -152,7 +152,7 @@ def main(args):
         if args.verbose:
             print('Assign pseudo labels')
         train_dataset = clustering.cluster_assign(deepcluster.images_lists,
-                                                  mnist_train.imgs)
+                                                  mnist_train.train_data)
 
         # uniformly sample per target
         sampler = UnifLabelSampler(int(args.reassign * len(train_dataset)),
