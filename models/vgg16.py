@@ -126,6 +126,7 @@ class VGG(nn.Module):
     def forward(self, x):
         if self.sobel:
             x = self.sobel(x)
+        # print(x.shape)
         x = self.features(x)
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
